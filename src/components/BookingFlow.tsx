@@ -31,7 +31,7 @@ const fmtTime = (t: string) => {
   const [h, m] = t.split(":").map(Number)
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
 }
-const fmtPrice = (n: number) => `Rs ${n.toLocaleString("en-IN")} /-`
+const fmtPrice = (n: number) => (n === 0 ? "Free" : `Rs ${n.toLocaleString("en-IN")} /-`)
 
 export default function BookingFlow({ service, price, close }: Props) {
   const days = useMemo(() => {

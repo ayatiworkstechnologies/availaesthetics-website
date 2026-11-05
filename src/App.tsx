@@ -230,7 +230,6 @@ const pageFromHash = (): Page =>
   ) ?? "home"
 const aestheticsMenu: { label: string; page: Page }[] = [
   { label: "Vitamin Injections", page: "vitamin" },
-  { label: "Vampire Facial", page: "treatment" },
 ]
 
 function go(page: Page, anchor?: string) {
@@ -1488,95 +1487,6 @@ function Footer() {
   )
 }
 
-function BookingModal({ close }: { close: () => void }) {
-  const [sent, setSent] = useState(false)
-  return (
-    <motion.div
-      className="modal-backdrop"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onMouseDown={(e) => e.target === e.currentTarget && close()}
-    >
-      <motion.div
-        className="modal"
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 30, opacity: 0 }}
-      >
-        <button className="modal-close" onClick={close} aria-label="Close">
-          <X />
-        </button>
-        {!sent ? (
-          <>
-            <span className="eyebrow">Start a conversation</span>
-            <h2>Request a consultation</h2>
-            <p>
-              Share your preferred contact details and our team can help with
-              next steps.
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                setSent(true)
-              }}
-            >
-              <label>
-                Full name
-                <input required placeholder="Your name" />
-              </label>
-              <label>
-                Email address
-                <input required type="email" placeholder="you@example.com" />
-              </label>
-              <label>
-                I'm interested in
-                <select defaultValue="">
-                  <option value="" disabled>
-                    Select an area
-                  </option>
-                  <option>Aesthetic care</option>
-                  <option>Wellness</option>
-                  <option>Vampire Facial consultation</option>
-                  <option>Not sure yet</option>
-                </select>
-              </label>
-              <label>
-                Preferred contact method
-                <select>
-                  <option>Email</option>
-                  <option>Phone</option>
-                </select>
-              </label>
-              <small>
-                Please do not include confidential medical information. This
-                form is a design demonstration and does not transmit data.
-              </small>
-              <button className="btn btn-dark" type="submit">
-                Send request <ArrowRight size={16} />
-              </button>
-            </form>
-          </>
-        ) : (
-          <div className="success">
-            <div>
-              <Check />
-            </div>
-            <span className="eyebrow">Request noted</span>
-            <h2>Thank you.</h2>
-            <p>
-              This prototype does not transmit data. Connect the form to the
-              clinic’s approved secure booking system before launch.
-            </p>
-            <button className="btn btn-dark" onClick={close}>
-              Close
-            </button>
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
-  )
-}
 
 export default function App() {
   const [page, setPage] = useState<Page>(pageFromHash)
@@ -1624,7 +1534,11 @@ export default function App() {
               close={() => setBooking(false)}
             />
           ) : (
-            <BookingModal close={() => setBooking(false)} />
+            <BookingFlow
+              service="Free Consultation"
+              price={0}
+              close={() => setBooking(false)}
+            />
           ))}
       </AnimatePresence>
     </>
