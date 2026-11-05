@@ -193,13 +193,6 @@ export default function VitaminInjectionsPage({ openBooking, onBack }: Props) {
       </section>
 
       <section className="vit-def section">
-        <motion.div className="vit-def-head" {...reveal}>
-          <span className="eyebrow">Treatment overview</span>
-          <h2>
-            What are IM <em>vitamin injections?</em>
-          </h2>
-        </motion.div>
-
         <div className="vit-def-body">
           <motion.figure className="vit-def-figure" {...reveal}>
             <ImageReveal
@@ -213,6 +206,12 @@ export default function VitaminInjectionsPage({ openBooking, onBack }: Props) {
           </motion.figure>
 
           <motion.div className="vit-def-copy" {...reveal}>
+            <div className="vit-def-head">
+              <span className="eyebrow">Treatment overview</span>
+              <h2>
+                What are IM <em>vitamin injections?</em>
+              </h2>
+            </div>
             <p className="vit-def-lead">
               An intramuscular injection delivers a selected ingredient directly
               into muscle tissue, where it is gradually absorbed into the
