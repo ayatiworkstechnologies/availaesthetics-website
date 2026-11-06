@@ -61,6 +61,12 @@
       "skillPath": "skills/break-ui/SKILL.md",
       "computedHash": "60ada67662925f4df5e3c6ff41cac3ab241b66f8898100a5ffcd7ba7196cb868"
     },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "computedHash": "23b3930015c478034b222e1a015da03a962c8ab48aee9fb4f3f69d977034feaa"
+    },
     "emil-design-eng": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
@@ -73,6 +79,12 @@
       "skillPath": "skills/find-animation-opportunities/SKILL.md",
       "computedHash": "465d087c41768e4f14ed640dd049036009f613feb55baaa5831b68b33178f9d2"
     },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "computedHash": "913b9d37d0d54047dd65222bb8c67b2bf04e3cb87dcad1729068d7a8b2c8c396"
+    },
     "glassmorphism": {
       "source": "iart-ai/web-animation-skills",
       "sourceType": "github",
@@ -84,6 +96,12 @@
       "sourceType": "github",
       "skillPath": "skills/gsap-web/SKILL.md",
       "computedHash": "11585ce3142acae8db34c9d0eb57e03834972f1095643266eb2c41b432564b1d"
+    },
+    "high-end-visual-design": {
+      "source": "Leonxlnx/taste-skill-classics",
+      "sourceType": "github",
+      "skillPath": "skills/soft-skill/SKILL.md",
+      "computedHash": "ff7257d91fa767a37b200b4bd6682fae614009c586433122e57c322823ad8f25"
     },
     "improve-animations": {
       "source": "emilkowalski/skills",
@@ -144,6 +162,12 @@
       "sourceType": "github",
       "skillPath": "skills/svg-animation/SKILL.md",
       "computedHash": "b6902577f093a1cd724052b94e633154cb42020b5001138185982fb4ce230404"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
     },
     "write-swift": {
       "source": "emilkowalski/skills",

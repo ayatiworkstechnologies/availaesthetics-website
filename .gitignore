@@ -23,3 +23,8 @@ logs/
 # Local / OS files
 .DS_Store
 .tmp/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
+
+# Local MCP config (may contain API keys)
+.cursor/mcp.json

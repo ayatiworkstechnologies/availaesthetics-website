@@ -1,59 +1,115 @@
-import { useMemo, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import {
-  ArrowLeft,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  ShieldCheck,
-  X,
-} from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { ArrowLeft, ArrowRight, Check, ChevronLeft, ChevronRight, X } from "lucide-react"
 
 type Props = {
-  service: string
-  price: number
+  /** Preselected service. Leave out to start with the service list. */
+  service?: string
+  price?: number
   close: () => void
 }
 
-const SLOTS = [
-  "10:00", "10:30", "11:00", "11:30", "12:00",
-  "12:30", "14:00", "14:30", "15:00", "15:30",
-  "16:00", "16:30", "17:00", "17:30", "18:00",
+// Names and groups from the availaestheticsmd.com navigation.
+const SERVICE_GROUPS = [
+  { label: "Consultation", items: ["Free Consultation"] },
+  {
+    label: "Skin Rejuvenation",
+    items: ["RF Microneedling", "Skin Rejuvenation", "Aquafacial", "XERF", "Exosome Therapy", "Skin Tightening"],
+  },
+  { label: "Laser Treatments", items: ["Thulium", "MICROFOCUS-RF", "Laser Hair Removal"] },
+  { label: "Body Contouring", items: ["Non Surgical Body Contouring", "Medical Weight Loss"] },
+  { label: "Hair Restoration", items: ["Hair Rejuvenation"] },
+  {
+    label: "Injectables",
+    items: ["Botox®", "Dermal Fillers", "Sculptra", "Radiesse", "Kybella Fat Dissolving Injections", "PRP Therapy"],
+  },
+  {
+    label: "Wellness",
+    items: [
+      "NAD+", "GHK-Cu", "BPC-157", "Wolverine", "Glutathione", "PT-141", "Semax & Selank", "TB-500",
+      "IV Infusion", "Vitamin & Wellness Injections", "Sexual Wellness",
+    ],
+  },
+  { label: "Peptide Therapy", items: ["Sermorelin", "Tesamorelin"] },
+]
+
+const SLOT_GROUPS = [
+  { label: "Morning", slots: ["10:00", "10:30", "11:00", "11:30"] },
+  { label: "Afternoon", slots: ["12:00", "12:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30"] },
+  { label: "Evening", slots: ["17:00", "17:30", "18:00"] },
 ]
 const DAYS_AHEAD = 30
-const PER_VIEW = 3
+const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"]
+const EASE = [0.23, 1, 0.32, 1] as const
 
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const sameDay = (a: Date, b: Date) => a.getTime() === b.getTime()
 const fmtDate = (d: Date) =>
-  d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-const fmtMonth = (d: Date) =>
-  d.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+  d.toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })
+const fmtMonth = (d: Date) => d.toLocaleDateString("en-US", { month: "long", year: "numeric" })
 const fmtTime = (t: string) => {
   const [h, m] = t.split(":").map(Number)
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
 }
-const fmtPrice = (n: number) => (n === 0 ? "Free" : `Rs ${n.toLocaleString("en-IN")} /-`)
+const fmtPrice = (n?: number) =>
+  n === undefined ? "Confirmed at consultation" : n === 0 ? "Complimentary" : `Rs ${n.toLocaleString("en-IN")}`
 
-export default function BookingFlow({ service, price, close }: Props) {
-  const days = useMemo(() => {
-    const start = new Date()
-    start.setHours(0, 0, 0, 0)
-    return Array.from({ length: DAYS_AHEAD }, (_, i) => {
-      const d = new Date(start)
-      d.setDate(start.getDate() + i + 1)
-      // Placeholder availability until a real booking system is connected.
-      const free = 8 + ((d.getDate() * 7 + d.getMonth() * 3) % 13)
-      return { date: d, free }
-    })
+export default function BookingFlow({ service: preset, price: presetPrice, close }: Props) {
+  const hasPicker = !preset
+  const [picked, setPicked] = useState<string | null>(null)
+  const [group, setGroup] = useState(0)
+  const service = preset ?? picked
+  const price = preset ? presetPrice : picked === "Free Consultation" ? 0 : undefined
+  const totalSteps = hasPicker ? 3 : 2
+  const reduce = useReducedMotion()
+  const { first, last } = useMemo(() => {
+    const t = startOfDay(new Date())
+    return {
+      first: new Date(t.getFullYear(), t.getMonth(), t.getDate() + 1),
+      last: new Date(t.getFullYear(), t.getMonth(), t.getDate() + DAYS_AHEAD),
+    }
   }, [])
-
-  const [step, setStep] = useState<1 | 2>(1)
-  const [offset, setOffset] = useState(0)
-  const [dayIndex, setDayIndex] = useState(0)
+  const [month, setMonth] = useState(new Date(first.getFullYear(), first.getMonth(), 1))
+  const [day, setDay] = useState(first)
   const [time, setTime] = useState<string | null>(null)
+  const [step, setStep] = useState<0 | 1 | 2>(hasPicker ? 0 : 1)
+  const stepNo = hasPicker ? step + 1 : step
   const [done, setDone] = useState(false)
 
-  const visible = days.slice(offset, offset + PER_VIEW)
-  const day = days[dayIndex]
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close()
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [close])
+
+  const cells = useMemo(() => {
+    const blanks = month.getDay()
+    const count = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()
+    return [
+      ...Array.from({ length: blanks }, () => null),
+      ...Array.from(
+        { length: count },
+        (_, i) => new Date(month.getFullYear(), month.getMonth(), i + 1),
+      ),
+    ]
+  }, [month])
+  const canPrev = month > new Date(first.getFullYear(), first.getMonth(), 1)
+  const canNext = new Date(month.getFullYear(), month.getMonth() + 1, 1) <= last
+  const shiftMonth = (n: number) =>
+    setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1))
+
+  const fade = {
+    initial: { opacity: 0, x: reduce ? 0 : 12 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: reduce ? 0 : -12 },
+    transition: { duration: 0.25, ease: EASE },
+  }
+  const field = (label: string, props: React.InputHTMLAttributes<HTMLInputElement>) => (
+    <label className="bf-field">
+      <input placeholder=" " {...props} />
+      <span>{label}</span>
+    </label>
+  )
 
   return (
     <motion.div
@@ -67,196 +123,223 @@ export default function BookingFlow({ service, price, close }: Props) {
         className="bf"
         role="dialog"
         aria-modal="true"
-        aria-label={`Book ${service}`}
-        initial={{ y: 30, opacity: 0 }}
+        aria-label={service ? `Book ${service}` : "Book a consultation"}
+        initial={{ y: reduce ? 0 : 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 30, opacity: 0 }}
+        exit={{ y: reduce ? 0 : 12, opacity: 0 }}
+        transition={{ duration: 0.4, ease: EASE }}
       >
-        <button className="bf-close" onClick={close} aria-label="Close">
-          <X size={20} />
-        </button>
-
-        {done ? (
-          <div className="bf-done">
-            <div className="bf-done-icon"><Check /></div>
-            <h2>Booking requested</h2>
-            <p>
-              {service} on {fmtDate(day.date)} at {time && fmtTime(time)}. The
-              clinic will confirm your appointment by email.
-            </p>
-            <small>
-              Prototype only: no data is sent. Connect this to the clinic’s
-              secure booking system before launch.
-            </small>
-            <button className="bf-primary" onClick={close}>Close</button>
+        <aside className="bf-photo">
+          <div>
+            <span className="eyebrow">Your appointment</span>
+            <h2>{service ?? "Select a service"}</h2>
+            <dl>
+              <div>
+                <dt>Date</dt>
+                <dd>{fmtDate(day)}</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{time ? fmtTime(time) : "Not selected"}</dd>
+              </div>
+              <div>
+                <dt>Total</dt>
+                <dd>{fmtPrice(price)}</dd>
+              </div>
+            </dl>
           </div>
-        ) : (
-          <>
-            <ol className="bf-steps" aria-label="Booking steps">
-              {[1, 2].map((n) => (
-                <li
-                  key={n}
-                  className={step === n ? "is-current" : step > n ? "is-done" : ""}
-                  aria-current={step === n ? "step" : undefined}
-                >
-                  {step > n ? <Check size={16} /> : n}
-                </li>
-              ))}
-            </ol>
+        </aside>
 
-            <div className="bf-body">
-              <AnimatePresence mode="wait" initial={false}>
-                {step === 1 ? (
-                  <motion.section
-                    key="s1"
-                    className="bf-panel bf-card"
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -12 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <h3 className="bf-title">{service}</h3>
-                    <p className="bf-sub">Select Date &amp; Time</p>
+        <div className="bf-main">
+          <button className="bf-close" onClick={close} aria-label="Close">
+            <X size={18} />
+          </button>
 
-                    <div className="bf-month">
+          <AnimatePresence mode="wait" initial={false}>
+            {done ? (
+              <motion.div key="done" className="bf-done" {...fade}>
+                <span className="bf-tick">
+                  <Check size={22} />
+                </span>
+                <span className="eyebrow">Request received</span>
+                <h3>
+                  Thank you. <em>We'll be in touch.</em>
+                </h3>
+                <p>
+                  {service} on {fmtDate(day)} at {time && fmtTime(time)}. The clinic will confirm
+                  your appointment by email.
+                </p>
+                <small>
+                  Prototype only: no data is sent until a secure booking system is connected.
+                </small>
+                <button className="btn btn-dark" onClick={close}>
+                  Close
+                </button>
+              </motion.div>
+            ) : step === 0 ? (
+              <motion.section key="s0" className="bf-step" {...fade}>
+                <span className="eyebrow">Step {stepNo} of {totalSteps}</span>
+                <h3>
+                  Choose a <em>service.</em>
+                </h3>
+                <div className="bf-svc">
+                  <div className="bf-cats" role="tablist" aria-orientation="vertical">
+                    {SERVICE_GROUPS.map((g, i) => (
                       <button
-                        onClick={() => setOffset(Math.max(0, offset - PER_VIEW))}
-                        disabled={offset === 0}
-                        aria-label="Earlier dates"
+                        key={g.label}
+                        role="tab"
+                        aria-selected={i === group}
+                        className={i === group ? "is-active" : ""}
+                        onClick={() => setGroup(i)}
                       >
-                        <ChevronLeft size={18} />
+                        {g.label}
+                        <small>{g.items.length}</small>
                       </button>
-                      <span>{fmtMonth(visible[0].date)}</span>
-                      <button
-                        onClick={() =>
-                          setOffset(Math.min(days.length - PER_VIEW, offset + PER_VIEW))
-                        }
-                        disabled={offset + PER_VIEW >= days.length}
-                        aria-label="Later dates"
-                      >
-                        <ChevronRight size={18} />
-                      </button>
-                    </div>
-
-                    <div className="bf-dates">
-                      {visible.map((d, i) => {
-                        const idx = offset + i
-                        return (
-                          <button
-                            key={idx}
-                            className={idx === dayIndex ? "is-active" : ""}
-                            aria-pressed={idx === dayIndex}
-                            onClick={() => {
-                              setDayIndex(idx)
-                              setTime(null)
-                            }}
-                          >
-                            <b>{fmtDate(d.date)}</b>
-                            <small className={d.free >= 18 ? "is-high" : ""}>
-                              {d.free} Free
-                            </small>
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    <h4 className="bf-slot-title">Available times</h4>
-                    <p className="bf-sub bf-sub-muted">{fmtDate(day.date)}</p>
-                    <div className="bf-slots">
-                      {SLOTS.map((s) => (
+                    ))}
+                  </div>
+                  <div className="bf-svc-pane">
+                    <b>{SERVICE_GROUPS[group].label}</b>
+                    <div className="bf-services">
+                      {SERVICE_GROUPS[group].items.map((name) => (
                         <button
-                          key={s}
-                          className={s === time ? "is-active" : ""}
-                          aria-pressed={s === time}
-                          onClick={() => setTime(s)}
+                          key={name}
+                          className={name === picked ? "is-active" : ""}
+                          aria-pressed={name === picked}
+                          onClick={() => setPicked(name)}
                         >
-                          {s}
+                          {name}
+                          {name === picked && <Check size={14} />}
                         </button>
                       ))}
                     </div>
-                  </motion.section>
-                ) : (
-                  <motion.form
-                    key="s2"
-                    id="bf-details"
-                    className="bf-panel bf-form"
-                    initial={{ opacity: 0, x: 12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 12 }}
-                    transition={{ duration: 0.25 }}
-                    onSubmit={(e) => {
-                      e.preventDefault()
-                      setDone(true)
-                    }}
-                  >
-                    <button type="button" className="bf-back" onClick={() => setStep(1)}>
-                      <ArrowLeft size={14} /> Change date &amp; time
-                    </button>
-                    <h3 className="bf-title">Almost There</h3>
-                    <p className="bf-sub">Patient Details</p>
-                    <div className="bf-fields">
-                      <label>First Name<input required autoComplete="given-name" /></label>
-                      <label>Last Name<input required autoComplete="family-name" /></label>
-                      <label>Email<input required type="email" autoComplete="email" /></label>
-                      <label>Phone Number<input required type="tel" autoComplete="tel" /></label>
-                      <label className="bf-wide">
-                        Additional Notes (Optional)
-                        <textarea rows={4} />
-                      </label>
-                    </div>
-                    <small className="bf-note">
-                      Please don’t include confidential medical information here.
-                    </small>
-                  </motion.form>
-                )}
-              </AnimatePresence>
-
-              <aside className="bf-summary">
-                <header>
-                  <span>Booking Summary</span>
-                  <small>Services</small>
-                  <h3>{service}</h3>
-                </header>
-                <div className="bf-summary-body">
-                  <div className="bf-line">
-                    <span className="bf-line-name">{service}</span>
-                    <b>{fmtPrice(price)}</b>
                   </div>
-                  <div className="bf-when">
-                    <div>
-                      <span><ShieldCheck size={18} /> Appointment date</span>
-                      <b>{fmtDate(day.date)}</b>
+                </div>
+                <div className="bf-actions">
+                  <p>Your provider will review your goals and any questions before treatment.</p>
+                  <button className="btn btn-dark" disabled={!picked} onClick={() => setStep(1)}>
+                    Continue <ArrowRight size={16} />
+                  </button>
+                </div>
+              </motion.section>
+            ) : step === 1 ? (
+              <motion.section key="s1" className="bf-step" {...fade}>
+                <span className="eyebrow">Step {stepNo} of {totalSteps}</span>
+                <h3>
+                  Choose a <em>date &amp; time.</em>
+                </h3>
+                <div className="bf-picker">
+                  <div className="bf-cal">
+                    <div className="bf-cal-head">
+                      <b>{fmtMonth(month)}</b>
+                      <div>
+                        <button disabled={!canPrev} onClick={() => shiftMonth(-1)} aria-label="Previous month">
+                          <ChevronLeft size={16} />
+                        </button>
+                        <button disabled={!canNext} onClick={() => shiftMonth(1)} aria-label="Next month">
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
                     </div>
-                    <div>
-                      <span><ShieldCheck size={18} /> Appointment time</span>
-                      <b>{time ? fmtTime(time) : "Select a time"}</b>
+                    <div className="bf-grid">
+                      {WEEKDAYS.map((w, i) => (
+                        <span key={i} className="bf-wd">
+                          {w}
+                        </span>
+                      ))}
+                      {cells.map((d, i) =>
+                        d ? (
+                          <button
+                            key={i}
+                            disabled={d < first || d > last}
+                            className={sameDay(d, day) ? "is-active" : ""}
+                            aria-pressed={sameDay(d, day)}
+                            aria-label={fmtDate(d)}
+                            onClick={() => {
+                              setDay(d)
+                              setTime(null)
+                            }}
+                          >
+                            {d.getDate()}
+                          </button>
+                        ) : (
+                          <span key={i} />
+                        ),
+                      )}
                     </div>
                   </div>
-                  <div className="bf-total">
-                    <b>Total</b>
-                    <div>
-                      <span>Includes 1 service</span>
-                      <b>{fmtPrice(price)}</b>
-                    </div>
+                  <div className="bf-slots">
+                    <b>{fmtDate(day)}</b>
+                    {SLOT_GROUPS.map((g) => (
+                      <div className="bf-slot-group" key={g.label}>
+                        <span>{g.label}</span>
+                        <div>
+                          {g.slots.map((t) => (
+                            <button
+                              key={t}
+                              className={t === time ? "is-active" : ""}
+                              aria-pressed={t === time}
+                              onClick={() => setTime(t)}
+                            >
+                              {fmtTime(t)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {step === 1 ? (
-                    <button
-                      className="bf-primary"
-                      disabled={!time}
-                      onClick={() => setStep(2)}
-                    >
-                      {time ? "Continue" : "Select a time to continue"}
+                </div>
+                <div className="bf-actions">
+                  {hasPicker ? (
+                    <button className="text-link" onClick={() => setStep(0)}>
+                      <ArrowLeft size={16} /> Back
                     </button>
                   ) : (
-                    <button className="bf-primary" type="submit" form="bf-details">
-                      Confirm Booking
-                    </button>
+                    <p>Your provider will review your goals and any questions before treatment.</p>
                   )}
+                  <button className="btn btn-dark" disabled={!time} onClick={() => setStep(2)}>
+                    Continue <ArrowRight size={16} />
+                  </button>
                 </div>
-              </aside>
-            </div>
-          </>
-        )}
+              </motion.section>
+            ) : (
+              <motion.form
+                key="s2"
+                className="bf-step"
+                {...fade}
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  setDone(true)
+                }}
+              >
+                <span className="eyebrow">Step {stepNo} of {totalSteps}</span>
+                <h3>
+                  Almost there. <em>Your details.</em>
+                </h3>
+                <div className="bf-fields">
+                  {field("First name", { required: true, autoComplete: "given-name" })}
+                  {field("Last name", { required: true, autoComplete: "family-name" })}
+                  {field("Email", { required: true, type: "email", autoComplete: "email" })}
+                  {field("Phone number", { required: true, type: "tel", autoComplete: "tel" })}
+                  <label className="bf-field bf-wide">
+                    <textarea placeholder=" " rows={3} />
+                    <span>Additional notes (optional)</span>
+                  </label>
+                </div>
+                <small className="bf-note">
+                  Please don't include confidential medical information here.
+                </small>
+                <div className="bf-actions">
+                  <button type="button" className="text-link" onClick={() => setStep(1)}>
+                    <ArrowLeft size={16} /> Back
+                  </button>
+                  <button className="btn btn-dark" type="submit">
+                    Confirm booking <ArrowRight size={16} />
+                  </button>
+                </div>
+              </motion.form>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </motion.div>
   )

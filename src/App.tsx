@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import VitaminInjectionsPage from "./pages/VitaminInjectionsPage"
+import AboutPage from "./pages/AboutPage"
 import BookingFlow from "./components/BookingFlow"
 import { EASE_OUT, ImageReveal, Stagger, staggerItem } from "./components/Motion"
 import {
@@ -218,11 +219,12 @@ function Brand({
   )
 }
 
-type Page = "home" | "treatment" | "vitamin"
+type Page = "home" | "treatment" | "vitamin" | "about"
 const pageHash: Record<Page, string> = {
   home: "",
   treatment: "#vampire-facial",
   vitamin: "#vitamin-injections",
+  about: "#about-us",
 }
 const pageFromHash = (): Page =>
   (Object.keys(pageHash) as Page[]).find(
@@ -231,6 +233,9 @@ const pageFromHash = (): Page =>
 const aestheticsMenu: { label: string; page: Page }[] = [
   { label: "Vitamin Injections", page: "vitamin" },
 ]
+
+const goNav = (item: string) =>
+  item === "About" ? go("about") : go("home", item.toLowerCase())
 
 function go(page: Page, anchor?: string) {
   if (page !== "home") {
@@ -282,7 +287,7 @@ function Header({ openBooking }: { openBooking: () => void }) {
                   </div>
                 </div>
               ) : (
-                <button key={item} onClick={() => go("home", item.toLowerCase())}>
+                <button key={item} onClick={() => goNav(item)}>
                   {item}
                 </button>
               ),
@@ -321,7 +326,7 @@ function Header({ openBooking }: { openBooking: () => void }) {
                   key={item}
                   onClick={() => {
                     setOpen(false)
-                    go("home", item.toLowerCase())
+                    goNav(item)
                   }}
                 >
                   <small>0{index + 1}</small>
@@ -677,7 +682,7 @@ function Home({ openBooking }: { openBooking: () => void }) {
             Personalized aesthetic and wellness services for men and women at
             multiple Texas locations.
           </p>
-          <button className="text-link">
+          <button className="text-link" onClick={() => go("about")}>
             Our philosophy <ArrowRight size={16} />
           </button>
         </motion.div>
@@ -1442,7 +1447,7 @@ function Footer() {
         <motion.div variants={staggerItem}>
           <span className="eyebrow">Explore</span>
           {nav.slice(0, 5).map((x) => (
-            <button key={x} onClick={() => go("home", x.toLowerCase())}>
+            <button key={x} onClick={() => goNav(x)}>
               {x}
             </button>
           ))}
@@ -1491,7 +1496,12 @@ function Footer() {
 export default function App() {
   const [page, setPage] = useState<Page>(pageFromHash)
   const [booking, setBooking] = useState(false)
+  const [bookingFromHeader, setBookingFromHeader] = useState(false)
   const reduceMotion = useReducedMotion()
+  const closeBooking = () => {
+    setBooking(false)
+    setBookingFromHeader(false)
+  }
   useEffect(() => {
     const change = () => setPage(pageFromHash())
     window.addEventListener("hashchange", change)
@@ -1503,7 +1513,12 @@ export default function App() {
   return (
     <>
       <ScrollProgress />
-      <Header openBooking={() => setBooking(true)} />
+      <Header
+        openBooking={() => {
+          setBookingFromHeader(true)
+          setBooking(true)
+        }}
+      />
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={page}
@@ -1514,6 +1529,11 @@ export default function App() {
         >
           {page === "treatment" ? (
             <TreatmentPage openBooking={() => setBooking(true)} />
+          ) : page === "about" ? (
+            <AboutPage
+              openBooking={() => setBooking(true)}
+              band={<ConsultationBand openBooking={() => setBooking(true)} />}
+            />
           ) : page === "vitamin" ? (
             <VitaminInjectionsPage
               openBooking={() => setBooking(true)}
@@ -1527,18 +1547,10 @@ export default function App() {
       <Footer />
       <AnimatePresence>
         {booking &&
-          (page === "vitamin" ? (
-            <BookingFlow
-              service="Vitamin Injections"
-              price={5000}
-              close={() => setBooking(false)}
-            />
+          (page === "vitamin" && !bookingFromHeader ? (
+            <BookingFlow service="Vitamin Injections" price={5000} close={closeBooking} />
           ) : (
-            <BookingFlow
-              service="Free Consultation"
-              price={0}
-              close={() => setBooking(false)}
-            />
+            <BookingFlow close={closeBooking} />
           ))}
       </AnimatePresence>
     </>
