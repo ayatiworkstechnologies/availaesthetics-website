@@ -1,18 +1,22 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import VitaminInjectionsPage from "./pages/VitaminInjectionsPage"
 import AboutPage from "./pages/AboutPage"
+import ContactPage from "./pages/ContactPage"
+import BlogPage from "./pages/BlogPage"
 import BookingFlow from "./components/BookingFlow"
 import { EASE_OUT, ImageReveal, Stagger, staggerItem } from "./components/Motion"
 import {
   AnimatePresence,
   motion,
   useReducedMotion,
+  useMotionValueEvent,
   useScroll,
   useSpring,
 } from "framer-motion"
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   Check,
   ChevronDown,
   Leaf,
@@ -21,6 +25,7 @@ import {
   Quote,
   ShieldCheck,
   Sparkles,
+  Stethoscope,
   X,
 } from "lucide-react"
 
@@ -43,6 +48,7 @@ const nav = [
   "Membership",
   "Locations",
   "Blog",
+  "Contact",
 ]
 const categories = [
   {
@@ -59,6 +65,34 @@ const categories = [
     title: "Vampire Facial",
     text: "Regenerative treatment using your own platelet-rich plasma.",
     image: images.portrait,
+  },
+  {
+    title: "Hair Rejuvenation",
+    text: "Consultation-led options to support thicker, healthier-looking hair.",
+    image: "/images/hair-rejuvenation.png",
+  },
+]
+
+const whyFeatures = [
+  {
+    icon: ShieldCheck,
+    title: "Complimentary consultation",
+    text: "Discuss your goals before selecting a treatment.",
+  },
+  {
+    icon: Sparkles,
+    title: "Transparent pricing",
+    text: "Review current treatment pricing with the clinic.",
+  },
+  {
+    icon: Leaf,
+    title: "Aftercare support",
+    text: "Receive treatment-specific guidance from your team.",
+  },
+  {
+    icon: Stethoscope,
+    title: "Physician-developed plans",
+    text: "Every treatment plan is tailored to you by a physician.",
   },
 ]
 
@@ -121,8 +155,8 @@ const clinicLocations = [
     name: "Katy",
     area: "West Houston · I-10 corridor",
     address: "23659 Katy Fwy, Suite 400, Katy, TX 77494",
-    phone: "(713) 590-0680",
-    phoneHref: "tel:+17135900680",
+    phone: "(713) 364-2938",
+    phoneHref: "tel:+17133642938",
   },
   {
     name: "Cypress",
@@ -219,12 +253,14 @@ function Brand({
   )
 }
 
-type Page = "home" | "treatment" | "vitamin" | "about"
+type Page = "home" | "treatment" | "vitamin" | "about" | "contact" | "blog"
 const pageHash: Record<Page, string> = {
   home: "",
   treatment: "#vampire-facial",
   vitamin: "#vitamin-injections",
   about: "#about-us",
+  contact: "#contact-us",
+  blog: "#blog",
 }
 const pageFromHash = (): Page =>
   (Object.keys(pageHash) as Page[]).find(
@@ -234,8 +270,59 @@ const aestheticsMenu: { label: string; page: Page }[] = [
   { label: "Vitamin Injections", page: "vitamin" },
 ]
 
+const LIVE = "https://availaestheticsmd.com/"
+const aestheticsColumns: { heading: string; links: [string, string][] }[] = [
+  {
+    heading: "Skin Rejuvenation",
+    links: [
+      ["RF Microneedling", "rf-microneedling"],
+      ["Skin Rejuvenation", "aesthetics/skin-rejuvenation"],
+      ["Aquafacial", "aesthetics/skin-rejuvenation/hydrafacial/"],
+      ["XERF", "aesthetics/skin-rejuvenation/XERF/"],
+      ["Exosome Therapy", "aesthetics/injectables/exosomes"],
+      ["Skin Tightening", "xerf-structural-skin-tightening/"],
+    ],
+  },
+  {
+    heading: "Laser Treatments",
+    links: [
+      ["Thulium", "thulium-laser-skin-resurfacing"],
+      ["MICROFOCUS-RF", "aesthetics/laser-treatment/microfocus-rf/"],
+      ["Laser Hair Removal", "aesthetics/laser-treatment/laser-hair-removal/"],
+    ],
+  },
+  {
+    heading: "Body Contouring",
+    links: [
+      ["Non Surgical Body Contouring", "non-surgical-body-contouring/"],
+      ["Medical Weight Loss", "medical-weight-loss/"],
+    ],
+  },
+  {
+    heading: "Hair Restoration",
+    links: [["Hair Rejuvenation", "aesthetics/hair-restoration/hair-rejuvenation/"]],
+  },
+  {
+    heading: "Injectables",
+    links: [
+      ["Botox®", "aesthetics/injectables/botox/"],
+      ["Dermal Fillers", "aesthetics/injectables/dermal-fillers"],
+      ["Sculptra", "aesthetics/injectables/sculptra/"],
+      ["Radiesse", "aesthetics/injectables/radiesse"],
+      ["Kybella Fat Dissolving Injections", "kybella-fat-dissolving-injections/"],
+      ["PRP Therapy", "aesthetics/injectables/prp-therapy"],
+    ],
+  },
+]
+
 const goNav = (item: string) =>
-  item === "About" ? go("about") : go("home", item.toLowerCase())
+  item === "About"
+    ? go("about")
+    : item === "Contact"
+      ? go("contact")
+      : item === "Blog"
+        ? go("blog")
+        : go("home", item.toLowerCase())
 
 function go(page: Page, anchor?: string) {
   if (page !== "home") {
@@ -253,11 +340,26 @@ function go(page: Page, anchor?: string) {
   else window.scrollTo({ top: 0, behavior: "smooth" })
 }
 
-function Header({ openBooking }: { openBooking: () => void }) {
+function Header({ openBooking, page }: { openBooking: () => void; page: Page }) {
+  const current = (item: string) =>
+    (item === "About" && page === "about") ||
+    (item === "Blog" && page === "blog") ||
+    (item === "Contact" && page === "contact")
   const [open, setOpen] = useState(false)
+  const [aestheticsOpen, setAestheticsOpen] = useState(false)
+  const [hidden, setHidden] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  // Slide away while scrolling down, return on scrolling up or near the top.
+  const { scrollY } = useScroll()
+  useMotionValueEvent(scrollY, "change", (y) => {
+    const previous = scrollY.getPrevious() ?? y
+    setScrolled(y > 40)
+    if (y < 120) setHidden(false)
+    else if (Math.abs(y - previous) > 4) setHidden(y > previous)
+  })
   return (
     <>
-      <header className="header">
+      <header className={`header${hidden ? " is-hidden" : ""}${scrolled ? " is-scrolled" : ""}`}>
         <div className="nav-shell">
           <Brand imageClassName="header-logo-image" />
           <nav className="desktop-nav" aria-label="Main navigation">
@@ -270,11 +372,23 @@ function Header({ openBooking }: { openBooking: () => void }) {
                   >
                     {item} <ChevronDown size={12} />
                   </button>
-                  <div className="nav-dropdown-menu" role="menu">
+                  <div className="nav-dropdown-menu">
+                    <div className="mega-columns">
+                      {aestheticsColumns.map((col) => (
+                        <div key={col.heading}>
+                          <h4>{col.heading}</h4>
+                          {col.links.map(([label, path]) => (
+                            <a key={path} href={LIVE + path} target="_blank" rel="noreferrer">
+                              {label}
+                            </a>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                     {aestheticsMenu.map((m) => (
                       <button
                         key={m.label}
-                        role="menuitem"
+                        className="mega-feature"
                         onClick={(e) => {
                           e.currentTarget.blur()
                           go(m.page)
@@ -287,14 +401,19 @@ function Header({ openBooking }: { openBooking: () => void }) {
                   </div>
                 </div>
               ) : (
-                <button key={item} onClick={() => goNav(item)}>
+                <button
+                  key={item}
+                  className={current(item) ? "is-current" : undefined}
+                  aria-current={current(item) ? "page" : undefined}
+                  onClick={() => goNav(item)}
+                >
                   {item}
                 </button>
               ),
             )}
           </nav>
-          <button className="btn btn-dark header-cta" onClick={openBooking}>
-            Book a consultation
+          <button className="btn header-cta" onClick={openBooking}>
+            Book a consultation <ArrowRight size={15} />
           </button>
           <button
             className="menu-button"
@@ -321,33 +440,61 @@ function Header({ openBooking }: { openBooking: () => void }) {
               </button>
             </div>
             <nav>
-              {nav.map((item, index) => (
-                <button
-                  key={item}
-                  onClick={() => {
-                    setOpen(false)
-                    goNav(item)
-                  }}
-                >
-                  <small>0{index + 1}</small>
-                  {item}
-                  <ArrowRight />
-                </button>
-              ))}
-              {aestheticsMenu.map((m) => (
-                <button
-                  key={m.label}
-                  className="mobile-sublink"
-                  onClick={() => {
-                    setOpen(false)
-                    go(m.page)
-                  }}
-                >
-                  <small>—</small>
-                  {m.label}
-                  <ArrowRight />
-                </button>
-              ))}
+              {nav.map((item, index) =>
+                item === "Aesthetics" ? (
+                  <div key={item}>
+                    <button
+                      aria-expanded={aestheticsOpen}
+                      onClick={() => setAestheticsOpen(!aestheticsOpen)}
+                    >
+                      <small>0{index + 1}</small>
+                      {item}
+                      <ChevronDown
+                        style={{ transform: aestheticsOpen ? "rotate(180deg)" : undefined }}
+                      />
+                    </button>
+                    {aestheticsOpen && (
+                      <div className="mobile-mega">
+                        {aestheticsMenu.map((m) => (
+                          <button
+                            key={m.label}
+                            className="mobile-mega-page"
+                            onClick={() => {
+                              setOpen(false)
+                              go(m.page)
+                            }}
+                          >
+                            {m.label}
+                            <ArrowRight size={16} />
+                          </button>
+                        ))}
+                        {aestheticsColumns.map((col) => (
+                          <div key={col.heading}>
+                            <h4>{col.heading}</h4>
+                            {col.links.map(([label, path]) => (
+                              <a key={path} href={LIVE + path} target="_blank" rel="noreferrer">
+                                {label}
+                              </a>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => {
+                      setOpen(false)
+                      goNav(item)
+                    }}
+                  >
+                    <small>0{index + 1}</small>
+                    {item}
+                    <ArrowRight />
+                  </button>
+                ),
+              )}
             </nav>
             <button
               className="btn btn-light"
@@ -390,115 +537,72 @@ function SectionTitle({
   )
 }
 
-const CATEGORY_INTERVAL = 5000
-
 function CategoryExplorer() {
-  // `step` only counts up; card keys are absolute steps so the outgoing card
-  // slides away while a fresh copy enters on the right (infinite loop).
-  const [step, setStep] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const [inView, setInView] = useState(false)
+  const [active, setActive] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
   const reduceMotion = useReducedMotion()
   const n = categories.length
-  const active = step % n
-  const item = categories[active]
-  const auto = !reduceMotion && !paused && inView
-  const goTo = (i: number) => setStep((s) => s + ((i - (s % n) + n) % n))
-  useEffect(() => {
+  const { scrollYProgress } = useScroll({
+    target: rootRef,
+    offset: ["start start", "end end"],
+  })
+  useMotionValueEvent(scrollYProgress, "change", (p) =>
+    setActive(Math.min(n - 1, Math.max(0, Math.floor(p * n)))),
+  )
+  const scrollToRow = (i: number) => {
     const el = rootRef.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setInView(e.isIntersecting), {
-      threshold: 0.2,
+    if (getComputedStyle(el.firstElementChild!).position !== "sticky") return
+    const range = el.offsetHeight - window.innerHeight
+    const top = el.getBoundingClientRect().top + window.scrollY
+    window.scrollTo({
+      top: top + ((i + 0.5) / n) * range,
+      behavior: reduceMotion ? "auto" : "smooth",
     })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
-  useEffect(() => {
-    if (!auto) return
-    const id = setTimeout(() => setStep((s) => s + 1), CATEGORY_INTERVAL)
-    return () => clearTimeout(id)
-  }, [auto, step])
-  const ease = [0.65, 0, 0.35, 1] as const
+  }
   return (
-    <motion.div
-      className="cat-explorer"
-      ref={rootRef}
-      onFocus={(e) => {
-        if (e.target.matches(":focus-visible")) setPaused(true)
-      }}
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setPaused(false)
-      }}
-      {...reveal}
-    >
-      <div className="cat-list" role="tablist" aria-orientation="vertical">
-        <motion.span
-          className="cat-rail-fill"
-          animate={{ y: `${active * 100}%` }}
-          transition={{ duration: reduceMotion ? 0 : 0.6, ease }}
+    <div className="cat-scroll" ref={rootRef}>
+      <div className="cat-pin">
+        <SectionTitle
+          eyebrow="Explore by category"
+          title="Explore aesthetics by area of care."
         />
-        {categories.map((c, i) => (
-          <button
-            key={c.title}
-            role="tab"
-            aria-selected={i === active}
-            className={i === active ? "is-active" : ""}
-            onClick={() => goTo(i)}
-          >
-            {c.title}
-          </button>
-        ))}
-      </div>
-      <div className="cat-stage">
-        <div className="cat-row">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {[0, 1, 2, 3].map((p) => {
-              const abs = step + p
-              const i = abs % n
-              const c = categories[i]
-              return (
-                <motion.button
-                  key={abs}
-                  layout={!reduceMotion}
-                  className={`cat-card ${p === 0 ? "is-active" : ""}`}
-                  aria-label={`Show ${c.title}`}
-                  tabIndex={p === 0 || p > 2 ? -1 : 0}
-                  onClick={() => goTo(i)}
-                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 60 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -120 }}
-                  transition={{ duration: 1, ease }}
-                >
-                  <img src={c.image} alt="" />
-                  <span className="cat-badge">0{i + 1}</span>
-                </motion.button>
-              )
-            })}
-          </AnimatePresence>
-        </div>
-        <div className="cat-caption">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.p
-              key={item.title}
-              initial={{ opacity: 0, y: reduceMotion ? 0 : 6 }}
-              animate={{ opacity: 1, y: 0 }}
+        <div className="cat-track" style={{ "--i": active } as CSSProperties}>
+        <span className="cat-highlight" aria-hidden="true" />
+        <ul className="cat-rows">
+          {categories.map((c, i) => (
+            <li key={c.title}>
+              <button
+                className={i === active ? "is-active" : ""}
+                aria-current={i === active}
+                onClick={() => scrollToRow(i)}
+              >
+                <img className="cat-row-image" src={c.image} alt="" loading="lazy" />
+                <span>
+                  <strong>{c.title}</strong>
+                  <small>{c.text}</small>
+                </span>
+                <ArrowUpRight aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="cat-float" aria-hidden="true">
+          <AnimatePresence initial={false}>
+            <motion.img
+              key={categories[active].title}
+              src={categories[active].image}
+              alt=""
+              initial={{ opacity: 0, scale: reduceMotion ? 1 : 1.06 }}
+              animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {item.text}
-            </motion.p>
+              transition={{ duration: reduceMotion ? 0 : 0.5, ease: EASE_OUT }}
+            />
           </AnimatePresence>
-          <button
-            className="cat-next"
-            onClick={() => setStep((s) => s + 1)}
-            aria-label="Next category"
-          >
-            <ArrowRight size={18} />
-          </button>
+        </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -853,18 +957,11 @@ function Home({ openBooking }: { openBooking: () => void }) {
       </section>
 
       <section className="categories section" id="aesthetics">
-        <SectionTitle
-          eyebrow="Explore by category"
-          title="Explore aesthetics by area of care."
-        />
         <CategoryExplorer />
       </section>
 
-      <section className="experience" id="wellness">
-        <motion.div className="experience-image" {...reveal}>
-          <img src={images.interior} alt="Calm, minimal wellness interior" />
-        </motion.div>
-        <motion.div className="experience-copy" {...reveal}>
+      <section className="why section" id="wellness">
+        <motion.div className="why-heading" {...reveal}>
           <span className="eyebrow">Why Avail Aesthetics MD</span>
           <h2>
             Personalized care,
@@ -875,38 +972,25 @@ function Home({ openBooking }: { openBooking: () => void }) {
             Begin with a complimentary consultation, clear treatment guidance,
             and ongoing support from the Avail team.
           </p>
-          <div className="feature-list">
-            <div>
-              <ShieldCheck />
-              <span>
-                <b>Complimentary consultation</b>
-                <small>Discuss your goals before selecting a treatment.</small>
-              </span>
-            </div>
-            <div>
-              <Sparkles />
-              <span>
-                <b>Transparent pricing</b>
-                <small>Review current treatment pricing with the clinic.</small>
-              </span>
-            </div>
-            <div>
-              <Leaf />
-              <span>
-                <b>Aftercare support</b>
-                <small>
-                  Receive treatment-specific guidance from your team.
-                </small>
-              </span>
-            </div>
-          </div>
-          <button
-            className="btn btn-outline"
-            onClick={() => go("home", "about")}
-          >
-            Discover our approach <ArrowRight size={16} />
-          </button>
         </motion.div>
+        <div className="why-grid">
+          {whyFeatures.map(({ icon: Icon, title, text }) => (
+            <motion.article key={title} {...reveal}>
+              <span className="why-icon">
+                <Icon size={18} />
+              </span>
+              <div>
+                <h3>{title}</h3>
+                <p>{text}</p>
+              </div>
+            </motion.article>
+          ))}
+          <ImageReveal
+            className="why-image"
+            src={images.interior}
+            alt="Calm, minimal wellness interior"
+          />
+        </div>
       </section>
 
       <section className="testimonials section" id="concerns">
@@ -1458,7 +1542,11 @@ function Footer() {
             <button
               key={x}
               onClick={() =>
-                x === "Vampire Facial" ? go("treatment") : go("home")
+                x === "Vampire Facial"
+                  ? go("treatment")
+                  : x === "Blog"
+                    ? go("blog")
+                    : go("home")
               }
             >
               {x}
@@ -1514,6 +1602,7 @@ export default function App() {
     <>
       <ScrollProgress />
       <Header
+        page={page}
         openBooking={() => {
           setBookingFromHeader(true)
           setBooking(true)
@@ -1534,6 +1623,13 @@ export default function App() {
               openBooking={() => setBooking(true)}
               band={<ConsultationBand openBooking={() => setBooking(true)} />}
             />
+          ) : page === "contact" ? (
+            <ContactPage
+              locations={clinicLocations}
+              band={<ConsultationBand openBooking={() => setBooking(true)} />}
+            />
+          ) : page === "blog" ? (
+            <BlogPage band={<ConsultationBand openBooking={() => setBooking(true)} />} />
           ) : page === "vitamin" ? (
             <VitaminInjectionsPage
               openBooking={() => setBooking(true)}
